@@ -12,6 +12,8 @@ import axios from "axios";
 // Dokumentacja osmtogeojson: https://github.com/tyrasd/osmtogeojson
 import osmtogeojson from "osmtogeojson";
 import L from "leaflet";
+
+
 // ---- TYPY ----
 type MilitaryType =
   | "barracks"
@@ -59,7 +61,7 @@ const MILITARY_LABELS: Record<MilitaryType, string> = {
   office: "Biuro",
   danger_area: "Strefa niebezpieczeństwa",
   shelter: "Schron",
-  bunker: "Bunker Saddama Hussaina"
+  bunker: "Bunker "
 
 };
 
@@ -89,40 +91,19 @@ export default function MilitaryOSMLayer() {
   // Wyświetl loader
   setLoading(true);
   setData(null);
-  setError(null);
-
-  const query = `
-    [out:json][timeout:60];
-    area["ISO3166-1"="PL"]->.a;
-    (
-      way["military"="${type}"](area.a);
-      relation["military"="${type}"](area.a);
-    );
-    out geom;
-  `;
-
-  const requestUrl =
-    "https://overpass.kumi.systems/api/interpreter?data=" +
-    encodeURIComponent(query);
-
-  try {
-    // Pobranie danych z Overpass API
-    const res = await axios.get(requestUrl);
-    console.log("Dane z Overpass:", res.data);
-
-    // Konwersja OSM → GeoJSON
-    const geojson = osmtogeojson(res.data);
-
-    // Zapis danych do stanu
+  const url = `/data/${type}.json`
+  try{
+    const result = await fetch(url);
+    
+    if (!result.ok){
+      console.error("File not found", url);
+      return;
+    }
+    const geojson=await result.json();
     setData(geojson);
-  } catch (e) {
-    console.error("Błąd Overpass:", e);
-
-    // Obsługa błędu
-    setData(null);
-    setError("Nie udało się pobrać danych z Overpass API.");
-  } finally {
-    // Ukryj loader
+  }catch(error){
+    console.error("Błąd", error);
+  } finally{
     setLoading(false);
   }
 };
