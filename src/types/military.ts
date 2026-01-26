@@ -10,4 +10,3 @@ export type MilitaryType =
   | "shelter"
   | "bunker";
 
-  //changes

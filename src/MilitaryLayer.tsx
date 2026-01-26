@@ -9,7 +9,6 @@ import L from "leaflet";
 
 
 
-import L from "leaflet";
 
 
 // ---- TYPY ----
