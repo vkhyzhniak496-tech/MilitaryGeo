@@ -9,3 +9,5 @@ export type MilitaryType =
   | "danger_area"
   | "shelter"
   | "bunker";
+
+  //changes

@@ -1,17 +1,13 @@
 // ---- IMPORTY ----
 // Dokumentacja React hooków: https://react.dev/reference/react
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Dokumentacja react-leaflet:
 // https://react-leaflet.js.org/docs/start-introduction
 import { GeoJSON, useMap } from "react-leaflet";
-
-// Dokumentacja Axios: https://axios-http.com/docs/intro
-import axios from "axios";
-
-// Dokumentacja osmtogeojson: https://github.com/tyrasd/osmtogeojson
-import osmtogeojson from "osmtogeojson";
 import L from "leaflet";
+
+
 // ---- TYPY ----
 type MilitaryType =
   | "barracks"
@@ -52,14 +48,14 @@ const MILITARY_TYPES: MilitaryType[] = [
 const MILITARY_LABELS: Record<MilitaryType, string> = {
   barracks: "Koszary",
   naval_base: "Baza morska",
-  airfield: "Tempelhofer feld",
+  airfield: "Baza lotnicza",
   training_area: "Zona treningowa",
-  range:"Strzelnica (dziś się dowiedziałem)",
-  primary: "Podstawowe",
+  range:"Strzelnica",
+  primary: "Baza logistyczna",
   office: "Biuro",
   danger_area: "Strefa niebezpieczeństwa",
   shelter: "Schron",
-  bunker: "Bunker Saddama Hussaina"
+  bunker: "Bunker "
 
 };
 
@@ -84,45 +80,29 @@ export default function MilitaryOSMLayer() {
 
   const map = useMap();
 
+  const [lineColor, setLineColor] = useState("#ff0084ff");
+const [lineWidth, setLineWidth] = useState(6);
+const [lineOpacity, setLineOpacity] = useState(1);
+
   // ---- FUNKCJA POBIERANIA DANYCH ----
  const fetchData = async (type: MilitaryType) => {
   // Wyświetl loader
-  setLoading(true);
+  setLoading(false);
   setData(null);
   setError(null);
-
-  const query = `
-    [out:json][timeout:60];
-    area["ISO3166-1"="PL"]->.a;
-    (
-      way["military"="${type}"](area.a);
-      relation["military"="${type}"](area.a);
-    );
-    out geom;
-  `;
-
-  const requestUrl =
-    "https://overpass.kumi.systems/api/interpreter?data=" +
-    encodeURIComponent(query);
-
-  try {
-    // Pobranie danych z Overpass API
-    const res = await axios.get(requestUrl);
-    console.log("Dane z Overpass:", res.data);
-
-    // Konwersja OSM → GeoJSON
-    const geojson = osmtogeojson(res.data);
-
-    // Zapis danych do stanu
+  const url = `/data/${type}.json`
+  try{
+    const result = await fetch(url);
+    
+    if (!result.ok){
+      console.error("File not found", url);
+      return;
+    }
+    const geojson=await result.json();
     setData(geojson);
-  } catch (e) {
-    console.error("Błąd Overpass:", e);
-
-    // Obsługa błędu
-    setData(null);
-    setError("Nie udało się pobrać danych z Overpass API.");
-  } finally {
-    // Ukryj loader
+  }catch(error){
+    console.error("Błąd", error);
+  } finally{
     setLoading(false);
   }
 };
@@ -136,6 +116,7 @@ export default function MilitaryOSMLayer() {
     if (!data || !layerRef.current) return;
 
     const bounds = layerRef.current.getBounds();
+    
 
     if (bounds.isValid()) {
       // TODO: Zmień animate: true na false i sprawdź różnicę
@@ -203,7 +184,7 @@ export default function MilitaryOSMLayer() {
         }}
       >
         <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
-          Rodzaj sztuki wojennej
+          Obiekty:
         </div>
 
         {/* TODO: Dodaj tooltipy (podpowiedzi) do przycisków */}
@@ -225,23 +206,107 @@ export default function MilitaryOSMLayer() {
           </button>
         ))}
       </div>
+{/* ---- LEGENDA (bottom-left) ---- */}
+<div
+  style={{
+    position: "absolute",
+    bottom: "20px",
+    left: "20px",
+    zIndex: 9999,
+    background: "rgba(255, 255, 255, 0.9)",
+    padding: "10px 14px",
+    borderRadius: "6px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+    fontSize: "14px",
+    fontWeight: "bold",
+  }}
+>
+  <div style={{ marginBottom: "6px", fontSize: "16px" }}>
+    Legenda
+  </div>
 
-      {/* ---- WARSTWA GEOJSON ---- */}
-      {data && (
-        <GeoJSON
-          key={militaryType}
-          data={data}
-          ref={layerRef}
-          style={() => ({
-            // TODO: Zmień kolory i sprawdź efekt
-            color: "#ff0084ff",
-            weight: 6,
-            opacity: 1,
-            fillColor: "#432b40ff",
-            fillOpacity: 0.45,
-          })}
-        />
-      )}
+  <div>
+    Typ: {MILITARY_LABELS[militaryType]}
+  </div>
+
+  <div>
+    Liczba obiektów: {data?.features?.length ?? 0}
+  </div>
+</div>
+
+{/* ---- STYLE PANEL (bottom-right) ---- */}
+<div
+  style={{
+    position: "absolute",
+    bottom: "20px",
+    right: "20px",
+    zIndex: 9999,
+    background: "rgba(255, 255, 255, 0.9)",
+    padding: "12px 16px",
+    borderRadius: "6px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+    width: "200px",
+    fontSize: "14px",
+  }}
+>
+  <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
+    Styl warstwy
+  </div>
+
+  {/* Color */}
+  <label style={{ display: "block", marginBottom: "6px" }}>
+    Kolor:
+    <input
+      type="color"
+      value={lineColor}
+      onChange={(e) => setLineColor(e.target.value)}
+      style={{ marginLeft: "8px" }}
+    />
+  </label>
+
+  {/* Width */}
+  <label style={{ display: "block", marginBottom: "6px" }}>
+    Grubość:
+    <input
+      type="range"
+      min={1}
+      max={12}
+      value={lineWidth}
+      onChange={(e) => setLineWidth(Number(e.target.value))}
+      style={{ width: "100%" }}
+    />
+  </label>
+
+  {/* Opacity */}
+  <label style={{ display: "block" }}>
+    Przezroczystość:
+    <input
+      type="range"
+      min={0.1}
+      max={1}
+      step={0.05}
+      value={lineOpacity}
+      onChange={(e) => setLineOpacity(Number(e.target.value))}
+      style={{ width: "100%" }}
+    />
+  </label>
+</div>
+
+{/* ---- WARSTWA GEOJSON ---- */}
+{data && (
+  <GeoJSON
+    key={militaryType}
+    data={data}
+    ref={layerRef}
+    style={() => ({
+      color: lineColor,
+      weight: lineWidth,
+      opacity: lineOpacity,
+      fillColor: lineColor,
+      fillOpacity: 0.45,
+    })}
+  />
+)}
     </>
   );
 }
