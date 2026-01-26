@@ -8,6 +8,10 @@ import { GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 
 
+
+import L from "leaflet";
+
+
 // ---- TYPY ----
 type MilitaryType =
   | "barracks"
@@ -89,7 +93,9 @@ const [lineOpacity, setLineOpacity] = useState(1);
   // Wyświetl loader
   setLoading(false);
   setData(null);
+
   setError(null);
+
   const url = `/data/${type}.json`
   try{
     const result = await fetch(url);
